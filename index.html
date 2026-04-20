@@ -211,7 +211,10 @@
             for (let i = 0; i < retries; i++) {
                 try {
                     const response = await fetch(url, options);
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(`HTTP error! status: ${response.status} - ${errorData.error?.message || 'Error desconocido'}`);
+                    }
                     return await response.json();
                 } catch (error) {
                     if (i === retries - 1) throw error;
@@ -259,7 +262,6 @@
         document.getElementById('generator-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // OBTENER LA API KEY DIRECTO DEL CAMPO DE TEXTO
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             if (!apiKey) {
                 alert("Por favor ingresa tu API Key de Gemini.");
@@ -287,6 +289,8 @@
             Object.values(tabContents).forEach(c => c.classList.add('hidden'));
 
             const prompt = `
+REGLA ESTRICTA DE FORMATO: Eres un generador de código HTML. Responde ÚNICAMENTE con código HTML válido, sin bloques de código de markdown (no uses \`\`\`html ni \`\`\`).
+
 Eres un copywriter experto en SEO y redactor web.
 Tu tarea es tomar la siguiente información proporcionada por el usuario y crear un artículo completo, complementando los datos si es necesario, pero siguiendo ESTRICTAMENTE una estructura HTML específica.
 
@@ -345,7 +349,8 @@ Tu tarea es tomar la siguiente información proporcionada por el usuario y crear
 
     <h2>Comparativa</h2>
     <table>
-        </table>
+        <!-- Genera una tabla comparativa -->
+    </table>
 
     <div class="experience-block">
       <div class="label">Nota del Experto</div>
@@ -374,9 +379,12 @@ Tu tarea es tomar la siguiente información proporcionada por el usuario y crear
 Devuelve SOLO el código HTML.
 `;
 
+            // Payload simplificado y 100% estándar para evitar el error 400
             const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                systemInstruction: { parts: [{ text: "Eres un generador de código HTML estricto. Responde únicamente con HTML válido sin bloques de markdown." }] }
+                contents: [{
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }]
             };
 
             try {
