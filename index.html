@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Artículos SEO con IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+        .tab-inactive { color: #64748b; }
+        .tab-inactive:hover { color: #334155; }
+        
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8 text-center sm:text-left">
+            <h1 class="text-3xl font-bold text-indigo-900 mb-2"><i class="fa-solid fa-wand-magic-sparkles mr-2 text-indigo-600"></i> Optimizador de Artículos SEO</h1>
+            <p class="text-slate-600">Ajusta tus textos a una plantilla de alto rendimiento, complementa la información y analiza tus keywords.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-fit">
+                <form id="generator-form" class="space-y-5">
+                    
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-6">
+                        <label for="apiKeyInput" class="block text-sm font-bold text-indigo-900 mb-1">
+                            <i class="fa-solid fa-key mr-1"></i> API Key de Gemini
+                        </label>
+                        <input type="password" id="apiKeyInput" required placeholder="Pega tu API Key aquí para esta sesión..." 
+                               class="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono text-sm">
+                        <p class="text-xs text-indigo-600 mt-2 font-medium">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> Por seguridad, esta llave no se guarda. Desaparece al cerrar la página.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="topic" class="block text-sm font-semibold text-slate-700 mb-1">Tema Principal / Título</label>
+                        <input type="text" id="topic" required placeholder="Ej: Inteligencia Artificial en Medicina" 
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label for="rawText" class="block text-sm font-semibold text-slate-700 mb-1">Texto Base / Apuntes</label>
+                        <textarea id="rawText" required rows="6" placeholder="Pega aquí la información base que tengas..." 
+                                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label for="keywords" class="block text-sm font-semibold text-slate-700 mb-1">Palabras Clave (Separadas por comas)</label>
+                        <input type="text" id="keywords" required placeholder="Ej: IA médica, diagnósticos precisos" 
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label for="sourceUrl" class="block text-sm font-semibold text-slate-700 mb-1">Enlace de Fuente / Referencia</label>
+                        <input type="url" id="sourceUrl" placeholder="https://..." 
+                               class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <button type="submit" id="submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                            <span>Generar Artículo Optimizado</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <div id="loading-state" class="hidden mt-6 text-center py-6 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <div class="loader mb-3"></div>
+                    <p class="text-indigo-800 font-medium">Analizando texto y adaptando a la plantilla...</p>
+                </div>
+                
+                <div id="error-state" class="hidden mt-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                </div>
+            </div>
+
+            <div class="lg:col-span-7 flex flex-col h-[800px]">
+                
+                <div class="flex border-b border-slate-200 mb-4 px-2">
+                    <button class="tab-btn tab-active px-4 py-3 mr-2" data-target="preview">
+                        <i class="fa-regular fa-eye mr-2"></i> Vista Previa
+                    </button>
+                    <button class="tab-btn tab-inactive px-4 py-3 mr-2" data-target="code">
+                        <i class="fa-solid fa-code mr-2"></i> Código HTML
+                    </button>
+                    <button class="tab-btn tab-inactive px-4 py-3" data-target="analysis">
+                        <i class="fa-solid fa-chart-pie mr-2"></i> Análisis Keywords
+                    </button>
+                </div>
+
+                <div class="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden relative">
+                    
+                    <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-50">
+                        <i class="fa-regular fa-file-lines text-6xl mb-4 text-slate-300"></i>
+                        <h3 class="text-lg font-medium text-slate-500">Aún no hay resultados</h3>
+                        <p class="text-sm mt-2 max-w-md">Ingresa tu API Key, llena el formulario y presiona "Generar".</p>
+                    </div>
+
+                    <div id="tab-preview" class="hidden w-full h-full">
+                        <iframe id="preview-iframe" class="w-full h-full border-none"></iframe>
+                    </div>
+
+                    <div id="tab-code" class="hidden w-full h-full flex flex-col">
+                        <div class="bg-slate-800 text-slate-300 px-4 py-2 flex justify-between items-center text-sm">
+                            <span>Estructura &lt;article&gt;</span>
+                            <button id="copy-btn" class="hover:text-white transition-colors flex items-center gap-1 bg-slate-700 px-3 py-1 rounded">
+                                <i class="fa-regular fa-copy"></i> Copiar
+                            </button>
+                        </div>
+                        <pre class="flex-1 overflow-auto bg-slate-900 p-4 text-emerald-400 text-sm font-mono m-0" id="code-output"></pre>
+                    </div>
+
+                    <div id="tab-analysis" class="hidden w-full h-full p-6 overflow-auto">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4">Densidad de Palabras Clave</h3>
+                        <div id="keyword-stats" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const templateStyles = `
+            <style>
+                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: system-ui, -apple-system, sans-serif;
+                    font-size: 1.05rem; line-height: 1.75; color: #1a1a1a;
+                    background: #fff; max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem 4rem;
+                }
+                .byline { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; font-size: 0.9rem; color: #555; }
+                .byline img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #eee; }
+                .byline strong { color: #1a1a1a; }
+                h1 { font-size: 2rem; line-height: 1.25; margin-bottom: 1.25rem; }
+                h2 { font-size: 1.4rem; line-height: 1.35; margin: 2.5rem 0 0.75rem; }
+                h3 { font-size: 1.15rem; margin: 1.75rem 0 0.5rem; }
+                p { margin-bottom: 1.1rem; }
+                .definition-box { border-left: 4px solid #6c63ff; background: #f5f3ff; padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin: 1.5rem 0 2rem; font-size: 1.05rem; }
+                .definition-box strong { display: block; margin-bottom: 0.4rem; color: #4b44cc; }
+                .stat-box { background: #f0faf5; border: 1px solid #c3e6d4; border-radius: 8px; padding: 0.85rem 1.1rem; margin: 1.25rem 0; font-size: 0.95rem; }
+                .stat-box cite { display: block; color: #555; font-size: 0.85rem; margin-top: 0.3rem; font-style: normal; }
+                ul, ol { padding-left: 1.5rem; margin-bottom: 1.1rem; }
+                li { margin-bottom: 0.45rem; }
+                table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.95rem; }
+                th { background: #f4f4f4; text-align: left; padding: 0.6rem 0.85rem; border-bottom: 2px solid #ddd; }
+                td { padding: 0.6rem 0.85rem; border-bottom: 1px solid #eee; }
+                .experience-block { background: #fffbea; border: 1px solid #f0d879; border-radius: 8px; padding: 1rem 1.25rem; margin: 2rem 0; }
+                .experience-block .label { font-size: 0.8rem; font-weight: 600; color: #8a6f00; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+                .faq-section { margin: 3rem 0; }
+                .faq-section h2 { margin-bottom: 1.25rem; }
+                details { border: 1px solid #e5e5e5; border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+                summary { padding: 0.85rem 1.1rem; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+                summary::-webkit-details-marker { display: none; }
+                summary::after { content: "+"; font-size: 1.2rem; color: #6c63ff; }
+                details[open] summary::after { content: "−"; }
+                details[open] summary { background: #f5f3ff; }
+                .faq-answer { padding: 0.85rem 1.1rem; }
+                .conclusion-box { background: #f0f7ff; border: 1px solid #b8d9f7; border-radius: 8px; padding: 1.25rem; margin: 2.5rem 0; }
+                .conclusion-box h2 { margin-top: 0; }
+                .article-meta { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #777; }
+            </style>
+        `;
+
+        const tabs = document.querySelectorAll('.tab-btn');
+        const tabContents = {
+            preview: document.getElementById('tab-preview'),
+            code: document.getElementById('tab-code'),
+            analysis: document.getElementById('tab-analysis')
+        };
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => { t.classList.remove('tab-active'); t.classList.add('tab-inactive'); });
+                tab.classList.add('tab-active'); tab.classList.remove('tab-inactive');
+                
+                Object.values(tabContents).forEach(content => content.classList.add('hidden'));
+                const target = tab.getAttribute('data-target');
+                tabContents[target].classList.remove('hidden');
+                
+                if(document.getElementById('code-output').textContent !== "") {
+                    document.getElementById('empty-state').classList.add('hidden');
+                }
+            });
+        });
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        async function fetchWithRetry(url, options, retries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    await sleep(delays[i]);
+                }
+            }
+        }
+
+        function countKeywords(text, keywordsString) {
+            const keywords = keywordsString.split(',').map(k => k.trim()).filter(k => k.length > 0);
+            const textLower = text.toLowerCase();
+            const stats = [];
+
+            keywords.forEach(kw => {
+                const kwLower = kw.toLowerCase();
+                const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`\\b${escapeRegExp(kwLower)}\\b`, 'gi');
+                const matches = textLower.match(regex);
+                const count = matches ? matches.length : 0;
+                stats.push({ keyword: kw, count: count });
+            });
+            return stats;
+        }
+
+        function renderKeywordStats(stats) {
+            const container = document.getElementById('keyword-stats');
+            container.innerHTML = '';
+            
+            stats.forEach(stat => {
+                const colorClass = stat.count > 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-red-800 border-red-200';
+                const icon = stat.count > 0 ? '<i class="fa-solid fa-check-circle mr-2"></i>' : '<i class="fa-solid fa-circle-xmark mr-2"></i>';
+                
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-lg border ${colorClass} flex justify-between items-center`;
+                div.innerHTML = `
+                    <div class="font-medium truncate mr-2" title="${stat.keyword}">${icon}${stat.keyword}</div>
+                    <div class="bg-white bg-opacity-50 px-3 py-1 rounded-full font-bold text-sm">
+                        ${stat.count}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        document.getElementById('generator-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // OBTENER LA API KEY DIRECTO DEL CAMPO DE TEXTO
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert("Por favor ingresa tu API Key de Gemini.");
+                return;
+            }
+
+            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+            const topic = document.getElementById('topic').value;
+            const rawText = document.getElementById('rawText').value;
+            const keywords = document.getElementById('keywords').value;
+            const sourceUrl = document.getElementById('sourceUrl').value;
+
+            const submitBtn = document.getElementById('submit-btn');
+            const loadingState = document.getElementById('loading-state');
+            const errorState = document.getElementById('error-state');
+            const emptyState = document.getElementById('empty-state');
+
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70');
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+            emptyState.classList.remove('hidden'); 
+            
+            Object.values(tabContents).forEach(c => c.classList.add('hidden'));
+
+            const prompt = `
+Eres un copywriter experto en SEO y redactor web.
+Tu tarea es tomar la siguiente información proporcionada por el usuario y crear un artículo completo, complementando los datos si es necesario, pero siguiendo ESTRICTAMENTE una estructura HTML específica.
+
+--- DATOS DEL USUARIO ---
+- TEMA PRINCIPAL: ${topic}
+- TEXTO BASE / APUNTES: ${rawText}
+- PALABRAS CLAVE A INCLUIR: ${keywords}
+- ENLACE DE FUENTE: ${sourceUrl || 'https://ejemplo.com/referencia'} (Úsalo para generar el bloque <div class="stat-box"> y la sección final de fuentes).
+
+--- INSTRUCCIONES ---
+1. Transforma el "Texto Base" en un artículo fluido, profesional y fácil de leer.
+2. Si el texto base es muy corto, COMPLEMENTA la información usando tu conocimiento general sobre el tema para que el artículo sea valioso y exhaustivo.
+3. Asegúrate de incluir las "Palabras clave" de forma natural a lo largo del texto.
+4. DEBES devolver ÚNICAMENTE código HTML, envuelto en la etiqueta <article> ... </article>.
+5. NO incluyas las etiquetas <html>, <head>, ni <body>. Solo el contenido principal.
+6. Utiliza EXACTAMENTE estas clases y estructuras CSS en tu respuesta HTML:
+
+<article>
+    <h1>¿Qué es [Tema]? Guía completa para [Beneficio]</h1>
+
+    <div class="byline">
+      <img src="https://ui-avatars.com/api/?name=Autor&background=random" alt="Autor">
+      <div>
+        <strong>Experto en el tema</strong><br>
+        <span>Publicado el [Fecha actual] · [Minutos] min de lectura</span>
+      </div>
+    </div>
+
+    <div class="definition-box">
+      <strong>Definición rápida</strong>
+      [Definición clara y directa del tema en 2 oraciones].
+    </div>
+    <p>[Párrafo introductorio...]</p>
+
+    <h2>¿Por qué importa [Tema] hoy?</h2>
+    <p>[Contexto...]</p>
+
+    <div class="stat-box">
+      [Dato interesante sobre el tema].
+      <cite>Fuente: <a href="${sourceUrl || '#'}" target="_blank" rel="noopener">Referencia</a></cite>
+    </div>
+
+    <h2>¿Cómo funciona? Paso a paso</h2>
+    <h3>Paso 1: [Nombre]</h3>
+    <p>[Descripción]</p>
+    <h3>Paso 2: [Nombre]</h3>
+    <p>[Descripción]</p>
+    
+    <h2>Ventajas y desventajas</h2>
+    <ul>
+      <li><strong>Ventaja 1:</strong> [Explicación]</li>
+    </ul>
+    <ul>
+      <li><strong>Desventaja 1:</strong> [Explicación]</li>
+    </ul>
+
+    <h2>Comparativa</h2>
+    <table>
+        </table>
+
+    <div class="experience-block">
+      <div class="label">Nota del Experto</div>
+      <p>[Un consejo práctico o advertencia].</p>
+    </div>
+
+    <section class="faq-section">
+      <h2>Preguntas frecuentes</h2>
+      <details>
+        <summary>[Pregunta]</summary>
+        <div class="faq-answer"><p>[Respuesta directa].</p></div>
+      </details>
+    </section>
+
+    <div class="conclusion-box">
+      <h2>Conclusión</h2>
+      <p>[Resumen final]</p>
+      <p>El siguiente paso es: <strong>[Acción]</strong>.</p>
+    </div>
+
+    <div class="article-meta">
+        <p>Fuentes consultadas: <a href="${sourceUrl || '#'}" target="_blank">${sourceUrl ? 'Enlace original' : 'Referencia general'}</a></p>
+    </div>
+</article>
+
+Devuelve SOLO el código HTML.
+`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: "Eres un generador de código HTML estricto. Responde únicamente con HTML válido sin bloques de markdown." }] }
+            };
+
+            try {
+                const result = await fetchWithRetry(modelUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (result.error) {
+                    throw new Error(`Error de API: ${result.error.message}`);
+                }
+
+                let generatedHtml = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (!generatedHtml) throw new Error("La IA no devolvió un resultado válido. Verifica tu API Key.");
+
+                generatedHtml = generatedHtml.replace(/^```html\s*/i, '').replace(/\s*```$/i, '').trim();
+
+                emptyState.classList.add('hidden');
+                
+                document.getElementById('code-output').textContent = generatedHtml;
+                
+                const iframe = document.getElementById('preview-iframe');
+                const iframeContent = `
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                        <meta charset="UTF-8">
+                        ${templateStyles}
+                    </head>
+                    <body>
+                        ${generatedHtml}
+                    </body>
+                    </html>
+                `;
+                iframe.srcdoc = iframeContent;
+
+                const stats = countKeywords(generatedHtml, keywords);
+                renderKeywordStats(stats);
+
+                tabs[0].click();
+
+            } catch (error) {
+                console.error(error);
+                errorState.textContent = "Ocurrió un error. Detalle: " + error.message;
+                errorState.classList.remove('hidden');
+            } finally {
+                loadingState.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70');
+            }
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const codeText = document.getElementById('code-output').textContent;
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = codeText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const btn = document.getElementById('copy-btn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> Copiado';
+                setTimeout(() => btn.innerHTML = originalHtml, 2000);
+            } catch (err) {
+                console.error('No se pudo copiar', err);
+            }
+            document.body.removeChild(textArea);
+        });
+
+    </script>
+</body>
+</html>
