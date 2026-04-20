@@ -42,25 +42,30 @@
             <div class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-fit">
                 <form id="generator-form" class="space-y-5">
                     
+                    <!-- CAJA DE SEGURIDAD Y VALIDACIÓN DINÁMICA -->
                     <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 mb-6">
                         <label for="apiKeyInput" class="block text-sm font-bold text-indigo-900 mb-1">
                             <i class="fa-solid fa-key mr-1"></i> API Key de Gemini
                         </label>
-                        <input type="password" id="apiKeyInput" required placeholder="Pega tu API Key aquí para esta sesión..." 
-                               class="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-mono text-sm">
+                        <div class="flex flex-col sm:flex-row gap-2 mb-2">
+                            <input type="password" id="apiKeyInput" required placeholder="Pega tu API Key aquí..." 
+                                   class="flex-1 px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm">
+                            <button type="button" id="verify-key-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+                                <i class="fa-solid fa-plug"></i> Validar Llave
+                            </button>
+                        </div>
                         
-                        <label for="modelSelect" class="block text-sm font-bold text-indigo-900 mt-4 mb-1">
-                            <i class="fa-solid fa-microchip mr-1"></i> Modelo de IA
-                        </label>
-                        <select id="modelSelect" class="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm bg-white">
-                            <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash Latest (Recomendado / Rápido)</option>
-                            <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro Latest (Mejor razonamiento)</option>
-                            <option value="gemini-pro">Gemini Pro Clásico (Estable)</option>
-                            <option value="gemini-1.5-flash">Gemini 1.5 Flash Standard</option>
-                        </select>
-
-                        <p class="text-xs text-indigo-600 mt-3 font-medium">
-                            <i class="fa-solid fa-shield-halved mr-1"></i> Por seguridad, esta llave no se guarda. Desaparece al cerrar la página.
+                        <div id="model-selection-container" class="hidden mt-4 pt-4 border-t border-indigo-100">
+                            <label for="modelSelect" class="block text-sm font-bold text-indigo-900 mb-1">
+                                <i class="fa-solid fa-list-check mr-1"></i> Modelos Disponibles para ti
+                            </label>
+                            <select id="modelSelect" class="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white">
+                                <!-- Las opciones se inyectan dinámicamente desde la API -->
+                            </select>
+                        </div>
+                        
+                        <p id="key-status-msg" class="text-xs text-indigo-600 mt-2 font-medium">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> La llave no se guarda y desaparece al cerrar la página.
                         </p>
                     </div>
 
@@ -124,7 +129,7 @@
                     <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-50">
                         <i class="fa-regular fa-file-lines text-6xl mb-4 text-slate-300"></i>
                         <h3 class="text-lg font-medium text-slate-500">Aún no hay resultados</h3>
-                        <p class="text-sm mt-2 max-w-md">Ingresa tu API Key, llena el formulario y presiona "Generar".</p>
+                        <p class="text-sm mt-2 max-w-md">Ingresa tu API Key, dale a "Validar Llave" y luego presiona "Generar".</p>
                     </div>
 
                     <div id="tab-preview" class="hidden w-full h-full">
@@ -234,6 +239,66 @@
             }
         }
 
+        // --- SISTEMA DE VALIDACIÓN DE API KEY Y MODELOS DINÁMICOS ---
+        document.getElementById('verify-key-btn').addEventListener('click', async () => {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const statusMsg = document.getElementById('key-status-msg');
+            const modelContainer = document.getElementById('model-selection-container');
+            const modelSelect = document.getElementById('modelSelect');
+
+            if (!apiKey) {
+                alert("Por favor ingresa tu API Key primero antes de validar.");
+                return;
+            }
+
+            statusMsg.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Validando llave y buscando modelos permitidos...';
+            statusMsg.className = "text-xs text-indigo-600 mt-2 font-medium";
+            
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: API Key inválida o no tiene permisos de IA.`);
+                }
+                
+                const data = await response.json();
+                // Filtrar solo los modelos que sirven para generar contenido (texto a texto)
+                const validModels = data.models.filter(m => 
+                    m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
+                );
+
+                if (validModels.length === 0) {
+                    throw new Error("La API Key es válida, pero tu cuenta no tiene modelos disponibles para generar texto.");
+                }
+
+                // Llenar el select con los modelos reales
+                modelSelect.innerHTML = '';
+                validModels.forEach(model => {
+                    const option = document.createElement('option');
+                    // model.name es literal el string que necesita la API (ej: "models/gemini-1.5-flash")
+                    option.value = model.name; 
+                    option.textContent = `${model.displayName || model.name.replace('models/', '')} (${model.version || 'Estable'})`;
+                    
+                    // Seleccionar un buen modelo por defecto si existe
+                    if (model.name.includes('gemini-1.5-flash')) {
+                        option.selected = true;
+                    }
+                    
+                    modelSelect.appendChild(option);
+                });
+
+                modelContainer.classList.remove('hidden');
+                statusMsg.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-1"></i> ¡Llave validada! Modelos cargados con éxito.';
+                statusMsg.className = "text-xs text-emerald-600 mt-2 font-bold";
+
+            } catch (error) {
+                console.error(error);
+                statusMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500 mr-1"></i> ${error.message}`;
+                statusMsg.className = "text-xs text-red-600 mt-2 font-bold";
+                modelContainer.classList.add('hidden');
+            }
+        });
+
+
         function countKeywords(text, keywordsString) {
             const keywords = keywordsString.split(',').map(k => k.trim()).filter(k => k.length > 0);
             const textLower = text.toLowerCase();
@@ -274,15 +339,23 @@
             e.preventDefault();
             
             const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const modelContainer = document.getElementById('model-selection-container');
+            const modelSelect = document.getElementById('modelSelect');
+
             if (!apiKey) {
                 alert("Por favor ingresa tu API Key de Gemini.");
                 return;
             }
 
-            // SELECCIONAR EL MODELO DINÁMICAMENTE DESDE LA UI
-            const selectedModel = document.getElementById('modelSelect').value;
-            // Usamos v1beta que es la versión recomendada para las nuevas variaciones de modelos
-            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+            // Exigir que el usuario valide la llave antes de generar
+            if (modelContainer.classList.contains('hidden') || !modelSelect.value) {
+                alert("Por favor, haz clic en el botón 'Validar Llave' primero para cargar los modelos permitidos.");
+                return;
+            }
+
+            // El selectedModelName ya incluye el "models/" (ej: "models/gemini-1.5-flash")
+            const selectedModelName = modelSelect.value;
+            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/${selectedModelName}:generateContent?key=${apiKey}`;
 
             const topic = document.getElementById('topic').value;
             const rawText = document.getElementById('rawText').value;
