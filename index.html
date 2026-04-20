@@ -229,11 +229,18 @@
                     const response = await fetch(url, options);
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => ({}));
-                        throw new Error(`HTTP error! status: ${response.status} - ${errorData.error?.message || 'Error desconocido'}`);
+                        const message = errorData.error?.message || 'Error desconocido';
+                        
+                        // Si es error de cuota (429), no seguimos reintentando agresivamente, informamos al usuario
+                        if (response.status === 429) {
+                            throw new Error("LIMITE_CUOTA");
+                        }
+                        
+                        throw new Error(`HTTP error! status: ${response.status} - ${message}`);
                     }
                     return await response.json();
                 } catch (error) {
-                    if (i === retries - 1) throw error;
+                    if (error.message === "LIMITE_CUOTA" || i === retries - 1) throw error;
                     await sleep(delays[i]);
                 }
             }
@@ -261,7 +268,6 @@
                 }
                 
                 const data = await response.json();
-                // Filtrar solo los modelos que sirven para generar contenido (texto a texto)
                 const validModels = data.models.filter(m => 
                     m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
                 );
@@ -270,15 +276,12 @@
                     throw new Error("La API Key es válida, pero tu cuenta no tiene modelos disponibles para generar texto.");
                 }
 
-                // Llenar el select con los modelos reales
                 modelSelect.innerHTML = '';
                 validModels.forEach(model => {
                     const option = document.createElement('option');
-                    // model.name es literal el string que necesita la API (ej: "models/gemini-1.5-flash")
                     option.value = model.name; 
                     option.textContent = `${model.displayName || model.name.replace('models/', '')} (${model.version || 'Estable'})`;
                     
-                    // Seleccionar un buen modelo por defecto si existe
                     if (model.name.includes('gemini-1.5-flash')) {
                         option.selected = true;
                     }
@@ -347,13 +350,11 @@
                 return;
             }
 
-            // Exigir que el usuario valide la llave antes de generar
             if (modelContainer.classList.contains('hidden') || !modelSelect.value) {
                 alert("Por favor, haz clic en el botón 'Validar Llave' primero para cargar los modelos permitidos.");
                 return;
             }
 
-            // El selectedModelName ya incluye el "models/" (ej: "models/gemini-1.5-flash")
             const selectedModelName = modelSelect.value;
             const modelUrl = `https://generativelanguage.googleapis.com/v1beta/${selectedModelName}:generateContent?key=${apiKey}`;
 
@@ -440,8 +441,8 @@ Tu tarea es tomar la siguiente información proporcionada por el usuario y crear
     </table>
 
     <div class="experience-block">
-      <div class="label">Nota del Experto</div>
-      <p>[Un consejo práctico o advertencia].</p>
+      <div class="label">Mi experiencia real</div>
+      <p>[Un consejo práctico o advertencia basada en tu experiencia simulada].</p>
     </div>
 
     <section class="faq-section">
@@ -466,7 +467,6 @@ Tu tarea es tomar la siguiente información proporcionada por el usuario y crear
 Devuelve SOLO el código HTML.
 `;
 
-            // Payload simplificado y 100% estándar
             const payload = {
                 contents: [{
                     role: "user",
@@ -517,7 +517,19 @@ Devuelve SOLO el código HTML.
 
             } catch (error) {
                 console.error(error);
-                errorState.textContent = "Ocurrió un error. Detalle: " + error.message;
+                if (error.message === "LIMITE_CUOTA") {
+                    errorState.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="fa-solid fa-hourglass-half text-lg mt-1"></i>
+                            <div>
+                                <strong class="block mb-1">¡Paciencia! Límite de cuota alcanzado.</strong>
+                                <p>Has realizado varias peticiones seguidas con tu API Key gratuita. Google requiere que esperes unos 30-60 segundos antes de generar el siguiente artículo. ¡Inténtalo de nuevo en un momento!</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    errorState.textContent = "Ocurrió un error. Detalle: " + error.message;
+                }
                 errorState.classList.remove('hidden');
             } finally {
                 loadingState.classList.add('hidden');
