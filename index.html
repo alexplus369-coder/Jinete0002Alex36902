@@ -39,7 +39,7 @@
         <header class="mb-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-indigo-900 mb-2"><i class="fa-solid fa-wand-magic-sparkles mr-2 text-indigo-600"></i> Suite de Contenido IA</h1>
-                <p class="text-slate-600" id="header-desc">SEO, Redes Sociales, Generación Visual y Extracción de Frases en un solo lugar.</p>
+                <p class="text-slate-600" id="header-desc">SEO, Redes Sociales, Generación Visual, Frases y Presentaciones en un solo lugar.</p>
             </div>
         </header>
 
@@ -99,18 +99,21 @@
                 <!-- SELECTOR DE HERRAMIENTAS -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                     <h2 class="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wider">Selecciona una herramienta</h2>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button class="tool-selector tool-btn-active px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center" data-target="tool-seo">
+                    <div class="flex flex-wrap gap-2">
+                        <button class="tool-selector tool-btn-active px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center flex-1 min-w-[140px]" data-target="tool-seo">
                             <i class="fa-solid fa-file-lines"></i> Artículos SEO
                         </button>
-                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center" data-target="tool-social">
+                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center flex-1 min-w-[140px]" data-target="tool-social">
                             <i class="fa-solid fa-hashtag"></i> Redes Sociales
                         </button>
-                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center" data-target="tool-prompts">
+                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center flex-1 min-w-[140px]" data-target="tool-prompts">
                             <i class="fa-solid fa-image"></i> Prompts Visuales
                         </button>
-                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center" data-target="tool-phrases">
+                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center flex-1 min-w-[140px]" data-target="tool-phrases">
                             <i class="fa-solid fa-quote-left"></i> Frases Clave
+                        </button>
+                        <button class="tool-selector tool-btn-inactive px-4 py-2 rounded-lg font-medium text-sm border transition-colors flex items-center gap-2 justify-center flex-1 min-w-[180px]" data-target="tool-presentation">
+                            <i class="fa-solid fa-microphone-lines"></i> Guion NotebookLM
                         </button>
                     </div>
                 </div>
@@ -220,6 +223,32 @@
                     </form>
                 </div>
 
+                <!-- HERRAMIENTA 5: PRESENTACIONES NOTEBOOKLM -->
+                <div id="tool-presentation" class="tool-panel hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 h-fit">
+                    <form id="generator-form-presentation" class="space-y-5">
+                        <div class="bg-violet-50 border border-violet-200 p-3 rounded-lg mb-4">
+                            <p class="text-xs text-violet-800 font-medium"><i class="fa-solid fa-podcast text-violet-500 mr-1"></i> Transforma tus documentos en un dinámico guion de podcast a dos voces o una estructura de diapositivas al estilo NotebookLM.</p>
+                        </div>
+                        <div>
+                            <label for="presentationType" class="block text-sm font-semibold text-slate-700 mb-1">Formato de Salida</label>
+                            <select id="presentationType" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                <option value="podcast">Podcast a dos voces (Audio Overview)</option>
+                                <option value="slides">Estructura para Diapositivas (Resumen Ejecutivo)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="presentationText" class="block text-sm font-semibold text-slate-700 mb-1">Documento / Texto Base</label>
+                            <textarea id="presentationText" required rows="8" placeholder="Pega aquí todo el contenido extenso, artículos o apuntes que quieras que la IA debata o resuma..." 
+                                      class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"></textarea>
+                        </div>
+                        <div class="pt-4 border-t border-slate-100">
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                <span>Generar Guion</span> <i class="fa-solid fa-bullhorn"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <!-- ESTADOS GLOBALES DE CARGA Y ERROR -->
                 <div id="loading-state" class="hidden mt-2 text-center py-6 bg-indigo-50 rounded-lg border border-indigo-100">
                     <div class="loader mb-3"></div>
@@ -308,6 +337,19 @@
                         </div>
                         <div class="flex-1 overflow-auto p-6 bg-white">
                             <div id="phrases-result-text" class="whitespace-pre-wrap font-sans text-slate-800 text-lg leading-relaxed" contenteditable="true" spellcheck="false" style="outline: none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- OUTPUT: PRESENTACIONES NOTEBOOKLM -->
+                    <div id="output-presentation" class="output-panel hidden w-full h-full flex flex-col">
+                        <div class="bg-violet-900 border-b border-violet-950 px-4 py-3 flex justify-between items-center">
+                            <h3 class="font-bold text-violet-100"><i class="fa-solid fa-microphone-lines mr-2 text-violet-400"></i>Guion de Presentación</h3>
+                            <button class="copy-btn bg-violet-800 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2" data-source="presentation-result-text">
+                                <i class="fa-regular fa-copy"></i> Copiar Guion
+                            </button>
+                        </div>
+                        <div class="flex-1 overflow-auto p-6 bg-white">
+                            <div id="presentation-result-text" class="whitespace-pre-wrap font-sans text-slate-800 text-lg leading-relaxed" contenteditable="true" spellcheck="false" style="outline: none;"></div>
                         </div>
                     </div>
 
@@ -417,6 +459,7 @@
             if(outputId === 'output-social') return document.getElementById('social-result-text').textContent !== "";
             if(outputId === 'output-prompts') return document.getElementById('prompts-result-text').textContent !== "";
             if(outputId === 'output-phrases') return document.getElementById('phrases-result-text').textContent !== "";
+            if(outputId === 'output-presentation') return document.getElementById('presentation-result-text').textContent !== "";
             return false;
         }
 
@@ -672,7 +715,6 @@ ${rawText}
             `;
 
             await runGeneration(prompt, (text) => {
-                // Limpiar posibles bloques markdown si la IA los puso por error
                 let cleanText = text.replace(/^```[\s\S]*?\n/g, '').replace(/```$/g, '').trim();
                 document.getElementById('social-result-text').textContent = cleanText;
             });
@@ -749,6 +791,58 @@ ${textToAnalyze}
             await runGeneration(prompt, (text) => {
                 let cleanText = text.replace(/^```[\s\S]*?\n/g, '').replace(/```$/g, '').trim();
                 document.getElementById('phrases-result-text').textContent = cleanText;
+            });
+
+            btn.disabled = false; btn.classList.remove('opacity-70');
+        });
+
+        // --- SUBMIT 5: PRESENTACIONES NOTEBOOKLM ---
+        document.getElementById('generator-form-presentation').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.classList.add('opacity-70');
+
+            const presentationType = document.getElementById('presentationType').value;
+            const textToProcess = document.getElementById('presentationText').value;
+
+            let prompt = "";
+
+            if (presentationType === 'podcast') {
+                prompt = `
+Actúa como los productores y guionistas de la famosa función "Audio Overview" de NotebookLM.
+Tu objetivo es transformar el documento proporcionado en un guion de podcast a dos voces extremadamente dinámico, ameno y educativo.
+
+INSTRUCCIONES ESTRICTAS:
+1. Usa dos personajes: "Anfitrión 1" y "Anfitrión 2".
+2. El Anfitrión 1 suele guiar la conversación, sorprenderse y hacer preguntas clave.
+3. El Anfitrión 2 es el experto que explica los conceptos a profundidad utilizando analogías creativas y fáciles de entender.
+4. Haz que suene muy conversacional y natural. Incluye interrupciones amistosas, muletillas ligeras y reacciones verbales (¡Wow!, exacto, ah ya veo, totalmente).
+5. Inicia con una introducción atrapante sobre el tema y termina con una conclusión breve que deje pensando a la audiencia.
+6. NO uses etiquetas markdown de código, solo texto plano estructurado como guion (Ej. Anfitrión 1: ...).
+
+Documento base a debatir:
+${textToProcess}
+                `;
+            } else {
+                prompt = `
+Actúa como un experto en diseño de presentaciones ejecutivas y un educador experto al estilo de las guías de estudio de NotebookLM.
+Tu objetivo es transformar el siguiente documento en un guion altamente estructurado para una presentación de diapositivas.
+
+INSTRUCCIONES ESTRICTAS:
+Estructura tu respuesta exactamente de la siguiente manera para cada diapositiva (genera el número de diapositivas que consideres necesario para abarcar bien el tema, pero sé conciso):
+
+[DIAPOSITIVA 1: Título de la diapositiva]
+🖼️ Visual Sugerido: (Describe brevemente y de forma creativa qué debería verse en la pantalla. P. ej., "Un gráfico de barras mostrando...", "Una fotografía de... con los siguientes 3 bullet points").
+🗣️ Guion del Orador: (El texto exacto que la persona debe decir mientras muestra esta diapositiva. Debe ser un texto hablado persuasivo, claro y no simplemente leer lo que está en la pantalla).
+
+Documento base a estructurar:
+${textToProcess}
+                `;
+            }
+
+            await runGeneration(prompt, (text) => {
+                let cleanText = text.replace(/^```[\s\S]*?\n/g, '').replace(/```$/g, '').trim();
+                document.getElementById('presentation-result-text').textContent = cleanText;
             });
 
             btn.disabled = false; btn.classList.remove('opacity-70');
