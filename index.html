@@ -90,7 +90,7 @@
                                 </button>
                             </div>
                             <p id="ds-key-status-msg" class="text-xs text-slate-500 mt-2 font-medium">
-                                <i class="fa-solid fa-circle-info mr-1"></i> Lista para usarse con modelos o herramientas de DeepSeek.
+                                <i class="fa-solid fa-circle-info mr-1"></i> Si ingresas esta llave, <strong class="text-slate-700">DeepSeek hará el trabajo</strong> (tiene prioridad).
                             </p>
                         </div>
                     </div>
@@ -223,7 +223,7 @@
                 <!-- ESTADOS GLOBALES DE CARGA Y ERROR -->
                 <div id="loading-state" class="hidden mt-2 text-center py-6 bg-indigo-50 rounded-lg border border-indigo-100">
                     <div class="loader mb-3"></div>
-                    <p class="text-indigo-800 font-medium">Procesando con IA...</p>
+                    <p class="text-indigo-800 font-medium" id="loading-text">Procesando con IA...</p>
                 </div>
                 
                 <div id="error-state" class="hidden mt-2 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm"></div>
@@ -238,7 +238,7 @@
                     <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-50 z-10">
                         <i class="fa-regular fa-compass text-6xl mb-4 text-slate-300"></i>
                         <h3 class="text-lg font-medium text-slate-500">Área de Resultados</h3>
-                        <p class="text-sm mt-2 max-w-md">Valida tu API Key y utiliza cualquiera de las herramientas de la izquierda para ver los resultados aquí.</p>
+                        <p class="text-sm mt-2 max-w-md">Valida tu API Key (Gemini o DeepSeek) y utiliza cualquiera de las herramientas para ver los resultados aquí.</p>
                     </div>
 
                     <!-- OUTPUT: SEO -->
@@ -463,7 +463,7 @@
             }
         }
 
-        // --- VALIDACIÓN DE API KEY ---
+        // --- VALIDACIÓN DE API KEY GEMINI ---
         document.getElementById('verify-key-btn').addEventListener('click', async () => {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             const statusMsg = document.getElementById('key-status-msg');
@@ -511,23 +511,27 @@
                 return;
             }
             
-            statusMsg.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-1"></i> ¡Guardada temporalmente para la sesión!';
+            statusMsg.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-1"></i> ¡DeepSeek Activo! Hará el trabajo a partir de ahora.';
             statusMsg.className = "text-xs text-emerald-600 mt-2 font-bold";
         });
 
-        // --- LÓGICA CENTRAL DE GENERACIÓN ---
+        // --- LÓGICA CENTRAL DE GENERACIÓN (MULTIMODELO) ---
         async function runGeneration(promptText, onSuccesCallback) {
-            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const geminiKey = document.getElementById('apiKeyInput').value.trim();
+            const deepseekKey = document.getElementById('deepseekApiKeyInput').value.trim();
             const modelSelect = document.getElementById('modelSelect');
             
-            if (!apiKey || !modelSelect.value) {
-                alert("Por favor, ingresa y valida tu API Key primero.");
+            if (!deepseekKey && (!geminiKey || !modelSelect.value)) {
+                alert("Por favor, ingresa una API Key válida (Gemini o DeepSeek) primero.");
                 return false;
             }
 
-            const modelUrl = `https://generativelanguage.googleapis.com/v1beta/${modelSelect.value}:generateContent?key=${apiKey}`;
             const loadingState = document.getElementById('loading-state');
+            const loadingText = document.getElementById('loading-text');
             const errorState = document.getElementById('error-state');
+            
+            // Si hay llave de DeepSeek, cambiamos el texto de carga para dar feedback visual
+            loadingText.textContent = deepseekKey ? "Procesando con DeepSeek IA..." : "Procesando con Gemini IA...";
             
             loadingState.classList.remove('hidden');
             errorState.classList.add('hidden');
@@ -537,17 +541,47 @@
             outputPanels.forEach(p => p.classList.add('hidden'));
 
             try {
-                const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
-                const result = await fetchWithRetry(modelUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                let responseText = "";
 
-                if (result.error) throw new Error(`Error API: ${result.error.message}`);
-                
-                const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!responseText) throw new Error("La IA no devolvió contenido válido.");
+                // PRIORIDAD: DEEPSEEK
+                if (deepseekKey) {
+                    const dsUrl = "https://api.deepseek.com/chat/completions";
+                    const dsPayload = {
+                        model: "deepseek-chat", // Utiliza el modelo V3 por defecto
+                        messages: [{ role: "user", content: promptText }]
+                    };
+
+                    const result = await fetchWithRetry(dsUrl, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${deepseekKey}`
+                        },
+                        body: JSON.stringify(dsPayload)
+                    });
+
+                    if (result.error) throw new Error(`API de DeepSeek: ${result.error.message}`);
+                    
+                    responseText = result.choices?.[0]?.message?.content;
+                    if (!responseText) throw new Error("DeepSeek no devolvió contenido válido.");
+
+                } 
+                // SECUNDARIO: GEMINI
+                else {
+                    const modelUrl = `https://generativelanguage.googleapis.com/v1beta/${modelSelect.value}:generateContent?key=${geminiKey}`;
+                    const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
+                    
+                    const result = await fetchWithRetry(modelUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (result.error) throw new Error(`API de Gemini: ${result.error.message}`);
+                    
+                    responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!responseText) throw new Error("Gemini no devolvió contenido válido.");
+                }
 
                 onSuccesCallback(responseText);
                 
@@ -559,7 +593,7 @@
                 console.error(error);
                 document.getElementById('empty-state').classList.remove('hidden');
                 if (error.message === "LIMITE_CUOTA") {
-                    errorState.innerHTML = `<strong>¡Paciencia!</strong> Has alcanzado el límite de cuota gratuita. Espera unos segundos e intenta de nuevo.`;
+                    errorState.innerHTML = `<strong>¡Paciencia!</strong> Has alcanzado el límite de peticiones del proveedor de IA. Espera unos segundos e intenta de nuevo.`;
                 } else {
                     errorState.textContent = "Error: " + error.message;
                 }
